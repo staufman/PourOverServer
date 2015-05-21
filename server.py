@@ -10,13 +10,13 @@ import delayedresult
 app = Flask(__name__)
 app.config['REDIS_QUEUE_KEY'] = delayedresult.QUEUE_KEY
 
-brew_task = None
-
+redis = Redis()
 
 @app.route('/v1/status.json')
 def status():
     return jsonify({
     	'status': 'success',
+    	'state': redis.get(coffee.MACHINE_STATE_KEY),
     	'data': {},
     	})
 

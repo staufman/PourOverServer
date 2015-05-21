@@ -1,4 +1,5 @@
 from delayedresult import clear_queue, queuefunc
+from redis import Redis
 from time import sleep
 
 import RPi.GPIO as GPIO
@@ -12,15 +13,17 @@ import RPi.GPIO as GPIO
 	STATE_FINAL_BREW,
 ) = range(5)
 
+MACHINE_STATE_KEY = 'machine_state'
+
 Motor1A = 16
 Motor1B = 18
 Motor1E = 22
 
-machine_state = None
-
 WET_GROUNDS_SECONDS = 5
 WAIT_FOR_BLOOM_SECONDS = 5
 FINAL_BREW_SECONDS = 5
+
+redis = Redis()
 
 
 @queuefunc
@@ -38,7 +41,7 @@ def setup_machine():
 	GPIO.setup(Motor1E, GPIO.OUT)
 	'''
 
-	machine_state = STATE_READY
+	redis.set(MACHINE_STATE_KEY, STATE_READY)
 
 
 @queuefunc
@@ -46,13 +49,14 @@ def tear_down_machine():
 	print "Tear down machine..."
 
 	machine_state = STATE_READY
+	redis.set(MACHINE_STATE_KEY, STATE_READY)
 	#GPIO.cleanup()
 
 
 @queuefunc
 def heat_water():
 	print "Heat water..."
-	machine_state = STATE_HEAT_WATER	
+	redis.set(MACHINE_STATE_KEY, STATE_HEAT_WATER)
 
 	# TODO: wait for water to be hot!
 	wet_grounds.delay(5)
@@ -61,7 +65,7 @@ def heat_water():
 @queuefunc
 def wet_grounds():
 	print "Wet grounds..."
-	machine_state = STATE_WET_GROUNDS
+	redis.set(MACHINE_STATE_KEY, STATE_WET_GROUNDS)
 
 	# wet the grounds for a predetermined amount of time (for now)
 	wait_for_bloom.delay(WET_GROUNDS_SECONDS)	
@@ -70,7 +74,7 @@ def wet_grounds():
 @queuefunc
 def wait_for_bloom():
 	print "Wait for bloom..."
-	machine_state = STATE_WAIT_FOR_BLOOM
+	redis.set(MACHINE_STATE_KEY, STATE_WAIT_FOR_BLOOM)
 
 	# wet the grounds for a predetermined amount of time (for now)
 	final_brew.delay(WAIT_FOR_BLOOM_SECONDS)	
@@ -79,7 +83,7 @@ def wait_for_bloom():
 @queuefunc
 def final_brew():
 	print "Final brew..."
-	machine_state = STATE_FINAL_BREW
+	redis.set(MACHINE_STATE_KEY, STATE_FINAL_BREW)
 
 	# brew for a predetermined time and then go back to the ready state
 	tear_down_machine.delay(FINAL_BREW_SECONDS)
